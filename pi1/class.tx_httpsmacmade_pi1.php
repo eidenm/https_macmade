@@ -28,7 +28,7 @@
 #error_reporting( E_ALL | E_STRICT );
 
 // Includes the TYPO3 module classe
-require_once( PATH_tslib . 'class.tslib_pibase.php' );
+//require_once( PATH_tslib . 'class.tslib_pibase.php' );
 
 /**
  * Plugin 'HTTPS Enforcer / macmade.net' for the 'https_macmade' extension.
@@ -40,7 +40,7 @@ require_once( PATH_tslib . 'class.tslib_pibase.php' );
  */
 
 // Includes the TYPO3 frontend plugin base class
-require_once( PATH_tslib . 'class.tslib_pibase.php' );
+//require_once( PATH_tslib . 'class.tslib_pibase.php' );
 
 class tx_httpsmacmade_pi1 extends tslib_pibase
 {
@@ -74,43 +74,31 @@ class tx_httpsmacmade_pi1 extends tslib_pibase
         $infos  = parse_url( $url );
         
         // Gets the URL scheme
-        $scheme = $infos[ 'scheme' ];
-        
+        if(!empty($_SERVER["HTTP_X_FORWARDED_FOR"])){
+            if(empty($_SERVER['HTTP_X_FORWARDED_PROTO'])){
+                $scheme = "http";
+            }
+            else{
+                $scheme = $_SERVER['HTTP_X_FORWARDED_PROTO'];
+            }
+        }
+        else{
+            $scheme = $infos[ 'scheme' ];            
+        }
+
         // Stores the scheme in TSFE
         $GLOBALS[ 'TSFE' ]->applicationData[ $this->prefixId ] = array( 'scheme' => $scheme );
         
-        // Global SSL enforce mode (set on TS template)
-        $g = (int)$conf[ 'mode' ];
-        
         // Local SSL enforce mode (set on page)
         $l = (int)$GLOBALS[ 'TSFE' ]->page[ 'tx_httpsmacmade_enforcemode'];
-        
-        // Current mode
-        $c = ( $scheme == 'https' ) ? 1 : 2;
-        
-        // Checks the modes
-        if ( $l && $l != $c ) {
-            
-            // Switch to local mode
-            $switch = $l;
-            
-        } else if ( $g && $g != $c && $l != $c ) {
-            
-            // Switch to global mode
-            $switch = $g;
+
+        if($scheme == "http" && $l == 1){
+            $redirect = str_replace("http://", "https://", $url);
+            header( 'Location: ' . $redirect );            
         }
-        
-        // Checks if the protocol must be changed
-        if ( isset( $switch ) ) {
-            
-            // Protocol to use
-            $protocol = ( $switch == 1 ) ? 'https' : 'http';
-            
-            // Redirect URL
-            $redirect = $protocol . substr( $url, strlen( $scheme ) );
-            
-            // Redirection
-            header( 'Location: ' . $redirect );
+        if($scheme == "https" && $l == 2){
+            $redirect = str_replace("https://", "http://", $url);
+            header( 'Location: ' . $redirect );  
         }
     }
 }
